@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button';
 import Spinner from '../../components/ui/Spinner';
 import EmptyState from '../../components/ui/EmptyState';
 import { useApplications } from '../../context/applications/useApplications';
+import { useAuth } from '../../context/auth/useAuth';
 
 function formatDate(iso) {
   if (!iso) return null;
@@ -62,8 +63,17 @@ function StatCard({ label, value, icon, accentClass }) {
 }
 
 function JobSeekerDashboard() {
+  const { profile } = useAuth();
   const { applications, loading, refreshApplications } = useApplications();
   const location = useLocation();
+
+  const firstName = useMemo(() => {
+    const name = profile?.full_name?.trim() || '';
+    const segment = name.split(/\s+/)[0];
+    return segment || null;
+  }, [profile?.full_name]);
+
+  const greeting = firstName ? `Welcome back, ${firstName}` : 'Welcome back';
 
   useEffect(() => {
     if (applications.length === 0) {
@@ -101,7 +111,7 @@ function JobSeekerDashboard() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-slate-900 md:text-3xl">
-          Welcome back
+          {greeting}
         </h1>
         <p className="mt-1 text-slate-600">
           Track your applications and find your next opportunity.

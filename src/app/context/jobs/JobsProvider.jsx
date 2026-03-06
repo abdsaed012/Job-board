@@ -7,6 +7,7 @@ import {
   updateJob as updateJobService,
   deleteJob as deleteJobService,
 } from '../../../services/jobs/jobs.service';
+import { getApplicationsCountForEmployer } from '../../../services/applications/applications.service';
 import { getErrorMessage } from '../../utils/errors';
 import { JobsContext } from './jobsContext';
 
@@ -35,6 +36,8 @@ function removeJob(list, jobId) {
 export function JobsProvider({ children }) {
   const [jobs, setJobs] = useState([]);
   const jobsRef = useRef(jobs);
+  const [employerApplicantsData, setEmployerApplicantsData] = useState(null);
+  const employerApplicantsCacheRef = useRef({ employerId: null, count: null });
 
   useEffect(() => {
     jobsRef.current = jobs;
@@ -49,6 +52,20 @@ export function JobsProvider({ children }) {
     if (error) return { data: null, error };
     setJobs(Array.isArray(data) ? data : []);
     return { data, error: null };
+  }, []);
+
+  const fetchEmployerApplicantsCount = useCallback(async (employerId) => {
+    const cache = employerApplicantsCacheRef.current;
+    if (cache.employerId === employerId && cache.count !== null) {
+      return { data: cache.count, error: null };
+    }
+
+    const { data, error } = await getApplicationsCountForEmployer(employerId);
+    if (error) return { data: null, error };
+    const count = data ?? 0;
+    employerApplicantsCacheRef.current = { employerId, count };
+    setEmployerApplicantsData({ employerId, count });
+    return { data: count, error: null };
   }, []);
 
   const fetchJobById = useCallback(async (jobId) => {
@@ -132,11 +149,13 @@ export function JobsProvider({ children }) {
     () => ({
       jobs,
       fetchMyJobs,
+      fetchEmployerApplicantsCount,
+      employerApplicantsData,
       fetchJobById,
       updateJob,
       deleteJob,
     }),
-    [jobs, fetchMyJobs, fetchJobById, updateJob, deleteJob]
+    [jobs, fetchMyJobs, fetchEmployerApplicantsCount, employerApplicantsData, fetchJobById, updateJob, deleteJob]
   );
 
   return <JobsContext.Provider value={value}>{children}</JobsContext.Provider>;

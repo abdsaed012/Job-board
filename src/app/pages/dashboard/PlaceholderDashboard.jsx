@@ -7,7 +7,6 @@ import Button from '../../components/ui/Button';
 import EmptyState from '../../components/ui/EmptyState';
 import { useAuth } from '../../context/auth/useAuth';
 import { useJobs } from '../../context/jobs/useJobs';
-import { getApplicationsCountForEmployer } from '../../../services/applications/applications.service';
 import { EMPLOYER } from '../../constants/roles';
 import { getErrorMessage } from '../../utils/errors';
 import toast from 'react-hot-toast';
@@ -27,10 +26,18 @@ function formatDate(iso) {
 
 function PlaceholderDashboard() {
   const { user, profile } = useAuth();
-  const { jobs, fetchMyJobs } = useJobs();
+  const { jobs, fetchMyJobs, fetchEmployerApplicantsCount, employerApplicantsData } = useJobs();
   const location = useLocation();
 
   const isEmployer = profile?.role === EMPLOYER;
+
+  const firstName = useMemo(() => {
+    const name = profile?.full_name?.trim() || '';
+    const segment = name.split(/\s+/)[0];
+    return segment || null;
+  }, [profile?.full_name]);
+
+  const greeting = firstName ? `Welcome back, ${firstName}` : 'Welcome back';
 
   const myJobs = useMemo(
     () => (user?.id ? jobs.filter((j) => j.employer_id === user.id) : []),
@@ -38,7 +45,9 @@ function PlaceholderDashboard() {
   );
 
   const [loading, setLoading] = useState(() => (user?.id && isEmployer ? myJobs.length === 0 : false));
-  const [applicantsCount, setApplicantsCount] = useState(null);
+
+  const applicantsCount =
+    employerApplicantsData?.employerId === user?.id ? employerApplicantsData.count : null;
 
   useEffect(() => {
     if (!user?.id || !isEmployer) {
@@ -51,7 +60,7 @@ function PlaceholderDashboard() {
     async function load() {
       const [jobsResult, applicantsResult] = await Promise.all([
         fetchMyJobs(user.id),
-        getApplicationsCountForEmployer(user.id),
+        fetchEmployerApplicantsCount(user.id),
       ]);
 
       if (cancelled) return;
@@ -61,17 +70,14 @@ function PlaceholderDashboard() {
       if (jobsResult.error) {
         toast.error(getErrorMessage(jobsResult.error));
       }
-      if (applicantsResult.error) {
+      if (applicantsResult?.error) {
         toast.error(getErrorMessage(applicantsResult.error));
-        setApplicantsCount(0);
-      } else {
-        setApplicantsCount(applicantsResult.data ?? 0);
       }
     }
 
     load();
     return () => { cancelled = true; };
-  }, [user?.id, isEmployer, fetchMyJobs]);
+  }, [user?.id, isEmployer, fetchMyJobs, fetchEmployerApplicantsCount]);
 
   if (!isEmployer) {
     return (
@@ -97,7 +103,7 @@ function PlaceholderDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 md:text-3xl">
-            Welcome back
+            {greeting}
           </h1>
           <p className="mt-1 text-slate-600">
             Get an overview of your jobs and recent activity.
@@ -137,7 +143,7 @@ function PlaceholderDashboard() {
             <div>
               <p className="text-sm text-slate-600">Total applicants</p>
               <p className="text-2xl font-bold text-slate-900 mt-0.5">
-                {loading ? '—' : applicantsCount ?? 0}
+                {loading && applicantsCount === null ? '—' : (applicantsCount ?? 0)}
               </p>
             </div>
           </Card.Content>

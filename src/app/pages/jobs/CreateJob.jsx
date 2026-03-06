@@ -136,7 +136,7 @@ function CreateJob() {
               label="Company"
               name="company"
               required
-              placeholder="Acme Inc"
+              placeholder="Dugsiiye"
               value={values.company}
               onChange={handleChange('company')}
               error={errors.company}
